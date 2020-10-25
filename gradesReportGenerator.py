@@ -23,7 +23,10 @@ languageChoice = "C++"
 
 masterList = ""
 dataList = ""
-spreadsheet = Dataset(headers=["Name", "Assignment", "filename", "Grade", "Numeric Grade"])
+if languageChoice == "C++":
+    spreadsheet = Dataset(headers=["Name", "Assignment", "Filename", "Project Foldername", "Grade", "Numeric Grade"])
+else:
+    spreadsheet = Dataset(headers=["Name", "Assignment", "Filename", "Grade", "Numeric Grade"])
 
 todaysDateTime = datetime.now().ctime().replace(" ", "_")
 
@@ -62,26 +65,41 @@ if path.exists(startingFolder):
                             codeFilesFound = True
                         if returnString.count('\t') >= 1:
                             (fileName, tags) = returnString.split('\t')
-                            assignmentsList.append((path.basename(fileName), tags.strip()))
+                            if languageChoice == "C++":
+                                projectFoldername = path.split(path.dirname(fileName))[-1]
+                                assignmentsList.append((path.basename(fileName), tags.strip(), projectFoldername))
+                            else:
+                                assignmentsList.append((path.basename(fileName), tags.strip()))
                 if len(assignmentsList) > 0:
                     fileContents = "Student {0}: Assignment {1}:\n".format(student, assignmentDirectory.name)
                     for item in assignmentsList:
                         fileContents += ("Program: {0} Grade: {1}\n".format(item[0], item[1]))
                         dataList += "{0}\t{1}\t{2}\t{3}\n".format(studentName,assignmentDirectory.name, item[0], gradeConversion[item[1]])
-                        calculationText = f'=IF(D{row}="Green",100,IF(D{row}="Yellow",75,IF(D{row}="Red",0,"-")))'
-                        spreadsheet.append((studentName, assignmentDirectory.name, item[0], item[1], calculationText))
+                        calculationText = f'=IF(E{row}="Green",100,IF(E{row}="Yellow",75,IF(E{row}="Red",0,"-")))'
+                        if languageChoice == "C++":
+                            spreadsheet.append((studentName, assignmentDirectory.name, item[0], item[2], item[1], calculationText))
+                        else:
+                            spreadsheet.append(
+                                (studentName, assignmentDirectory.name, item[0], item[1], calculationText))
                         row += 1
                 elif noTagsFound and codeFilesFound:
                     fileContents = "Student {0}: Assignment {1}:\n".format(student, assignmentDirectory.name)
                     fileContents += "Assignments not graded yet."
-                    calculationText = f'=IF(D{row}="Green",100,IF(D{row}="Yellow",75,IF(D{row}="Red",0,"-")))'
-                    spreadsheet.append((studentName, assignmentDirectory.name, item[0], "None Yet", calculationText))
+                    calculationText = f'=IF(E{row}="Green",100,IF(E{row}="Yellow",75,IF(E{row}="Red",0,"-")))'
+                    if languageChoice == "C++":
+                        spreadsheet.append((studentName, assignmentDirectory.name, item[0], item[2], "None Yet", calculationText))
+                    else:
+                        spreadsheet.append(
+                            (studentName, assignmentDirectory.name, item[0], "None Yet", calculationText))
                     row += 1
                 else:
                     fileContents = "Student {0}: Assignment {1}:\n".format(student, assignmentDirectory.name)
                     fileContents += "No assignments to grade"
-                    calculationText = f'=IF(D{row}="Green",100,IF(D{row}="Yellow",75,IF(D{row}="Red",0,"-")))'
-                    spreadsheet.append((studentName, assignmentDirectory.name, item[0], "Missing", calculationText))
+                    calculationText = f'=IF(E{row}="Green",100,IF(E{row}="Yellow",75,IF(E{row}="Red",0,"-")))'
+                    if languageChoice == "C++":
+                        spreadsheet.append((studentName, assignmentDirectory.name, item[0], item[2], "Missing", calculationText))
+                    else:
+                        spreadsheet.append((studentName, assignmentDirectory.name, item[0], "Missing", calculationText))
                     row += 1
                 fileContents += "\nRecorded on: {0}\n".format(todaysDateTime)
                 with open(path.join(startingFolder, student, assignmentDirectory, gradeFileName), 'w') as gradeFile:

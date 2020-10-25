@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="8370dfe3-29e6-4e35-9715-72b8da5f3c91" name="DropBoxSNHU">
+        <fileTransfer port="0" mountedRoot="$USER_HOME$/Dropbox/SNHU" accessType="MOUNT" />
+      </webServer>
+    </option>
+  </component>
+</project>
