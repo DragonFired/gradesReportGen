@@ -2,7 +2,7 @@
 __author__ = 'Arana Fireheart'
 
 from subprocess import check_output, STDOUT
-from os import scandir, path, walk
+from os import scandir, path, walk, stat
 from datetime import datetime
 from os.path import expanduser
 #
@@ -10,6 +10,8 @@ from os.path import expanduser
 # It generates a list of files without a RED, GREEN or YELLOW label.
 #
 
+monthNames = {"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+              "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12}
 home = expanduser("~")
 startingFolder = "Dropbox/SNHU/CS110/Fall2020"
 startingFolder = path.join(home, startingFolder)
@@ -18,27 +20,44 @@ gradeConversion = {"Red": 0, "Yellow": 75, "Green": 100, "Purple": 120}
 fileEndingsByLanguage = {"Python": (".py",), "C++": (".cpp", ".h",)}
 languageChoice = "Python"
 
-masterList = ""
-ungradedAssignmentCount = 0
-emptyList = ""
-emptyAssignmentCount = 0
 
-todaysDateTime = datetime.now().ctime().replace(" ", "_")
-masterList += "Recorded on: {0}\n".format(todaysDateTime)
+def getLastRecordingDate(filename):
+    try:
+        with open(filename, 'r') as pastReportFile:
+            logLine = pastReportFile.readline()
+            dateString = logLine.split(': ')[-1].strip().replace("_", " ")
+            lRWeekday, lRMonth, lRDay, lRTime, lRYear = dateString.split()
+            lRHour, lRMinute, lRSecond = lRTime.split(':')
+            previousDate = datetime(month=monthNames[lRMonth], day=int(lRDay), year=int(lRYear),
+                                    hour=int(lRHour), minute=int(lRMinute), second=int(lRSecond))
+            return previousDate
+    except FileNotFoundError:
+        print(f"{filename} doesn't exist.")
+
 
 def getStudentList(folderName):
-    namesList = []
-    for directoryItem in scandir(folderName):
-        if directoryItem.is_dir():
-            if not directoryItem.name.startswith('.'):
-                namesList.append(directoryItem.name)
-    return namesList
+    try:
+        namesList = []
+        for directoryItem in scandir(folderName):
+            if directoryItem.is_dir():
+                if not directoryItem.name.startswith('.'):
+                    namesList.append(directoryItem.name)
+        return namesList
+    except FileNotFoundError:
+        print("Folder {0} doesn't exist".format(folderName))
+        exit()
 
-if path.exists(startingFolder):
-    studentList = getStudentList(startingFolder)
 
-    studentList.sort()
-    for student in studentList:
+def processStudentFiles(studentNamesList, previousUpdateTime):
+    lastUpdated = previousUpdateTime.timestamp()
+    masterList = ""
+    emptyList = ""
+    ungradedAssignmentCount = emptyAssignmentCount = 0
+
+    currentDateTime = datetime.now().ctime().replace(" ", "_")
+    masterList += "Recorded on: {0}\n".format(currentDateTime)
+
+    for student in studentNamesList:
         studentName = student.split('-')[0]
         masterList += f"\n{studentName}\n"
         emptyList += f"\n{studentName}\n"
@@ -54,10 +73,12 @@ if path.exists(startingFolder):
                         command = 'tag "' + fullFilePath + '"'
                         returnString = check_output(command, stderr=STDOUT, shell=True).decode(
                             "UTF8")
-                        filename, fileExtention = path.splitext(fullFilePath)
-                        if fileExtention in fileEndingsByLanguage[languageChoice]:  # File is a code file
+                        filename, fileExtension = path.splitext(fullFilePath)
+                        if fileExtension in fileEndingsByLanguage[languageChoice]:  # File is a code file
                             codeFilesFound = True
-                            if returnString.count('\t') == 0:   # It has NOT been tagged.
+                            fileStats = stat(fullFilePath)
+                            lastModTime = fileStats.st_mtime
+                            if returnString.count('\t') == 0 or lastModTime > lastUpdated:  # It has NOT been tagged.
                                 fileName = returnString
                                 if languageChoice == "C++":
                                     projectFoldername = path.split(path.dirname(fileName))[-1]
@@ -72,11 +93,20 @@ if path.exists(startingFolder):
                 else:
                     emptyList += "Assignment {0}: Empty\n".format(assignmentDirectory.name)
                     emptyAssignmentCount += 1
+    return emptyAssignmentCount, emptyList, masterList, ungradedAssignmentCount
 
-    with open(path.join(startingFolder, gradeDataFilename) , 'w') as masterDataFile:
+
+def createReportFile(reportFilename):
+    with open(reportFilename, 'w') as masterDataFile:
         masterDataFile.write(masterList)
         masterDataFile.write("\n\n*****************************************\n\nEmpty List:\n")
         masterDataFile.write(emptyList)
-    print(f"{ungradedAssignmentCount} ungraded files, and \n{emptyAssignmentCount} empty assignments folders.")
-else:
-    print("Folder {0} doesn't exist".format(startingFolder))
+
+
+lastUpdatedDate = getLastRecordingDate(path.join(startingFolder, gradeDataFilename))
+studentList = getStudentList(startingFolder)
+studentList.sort()
+emptyAssignmentCount, emptyList, masterList, ungradedAssignmentCount = processStudentFiles(studentList, lastUpdatedDate)
+
+createReportFile(path.join(startingFolder, gradeDataFilename))
+print(f"{ungradedAssignmentCount} ungraded files, and \n{emptyAssignmentCount} empty assignments folders.")
